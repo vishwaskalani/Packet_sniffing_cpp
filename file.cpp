@@ -47,3 +47,70 @@
 // data is often exchanged between different machines with different architectures
 // Two main types of byte orders : big endian (MSB at lowest mem addr) and little endian (lsb at lowest memory addr)
 // Network byte order is always big-endian.
+
+
+void ProcessPacket(unsigned char*, int);
+void print_ip_header(unsigned char*, int);
+void print_tcp_packet(unsigned char*, int);
+void print_udp_packet(unsigned char*, int);
+void print_icmp_packet(unsigned char*, int);
+void PrintData(unsigned char*, int);
+
+std::ofstream logfile;
+// struct describing an internet socket address
+struct sockaddr_in source,dest;
+// global variables
+int tcp = 0, udp = 0, icmp = 0, others = 0, igmp = 0, total = 0, i, j;
+
+int main()
+{
+    int saddr_size, data_size;
+
+	// we will store the information of sender of received packet
+    struct sockaddr saddr;
+
+    unsigned char* buffer = new unsigned char[65536]; // Its Big!
+
+    logfile.open("log.txt");
+    if (!logfile.is_open())
+    {
+        std::cout << "Unable to create log.txt file." << std::endl;
+        return 1;
+    }
+    std::cout << "Starting..." << std::endl;
+
+	// creating a raw socket with the below parameters
+    int sock_raw = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+
+	// if there is error in socket creation
+	// may be due to insufficient priveleges
+    if (sock_raw < 0)
+    {
+        perror("Socket Error");
+        return 1;
+    }
+
+	// looping continuously to receive packets
+	// extracting the information from the packets in the below loop
+	// Using the function ProcessPacket
+    while (1)
+    {
+        saddr_size = sizeof(saddr);
+		// u can see an interesting typecasting here (socklen_t*)&saddr_size
+		// (socklen_t*) casts the pointer to the type socklen_t*. 
+		// This means we are treating the memory location pointed to by &saddr_size 
+		// as if it stores a pointer of type socklen_t
+        data_size = recvfrom(sock_raw, buffer, 65536, 0, &saddr, (socklen_t*)&saddr_size);
+        if (data_size < 0)
+        {
+            std::cout << "Recvfrom error, failed to get packets" << std::endl;
+            return 1;
+        }
+        ProcessPacket(buffer, data_size);
+    }
+
+	// closing the raw socket
+    close(sock_raw);
+    std::cout << "Finished" << std::endl;
+    return 0;
+}
